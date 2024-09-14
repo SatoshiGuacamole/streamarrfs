@@ -24,6 +24,7 @@ export class JackettTorrentSourceService implements OnApplicationBootstrap {
       customFields: {
         item: [['torznab:attr', 'torznabAttr']],
       },
+      defaultRSS: 1.0,
     });
     this.feeds = this.configService.get<Array<Feed>>(
       'STREAMARRFS_JACKETT_FEEDS',
