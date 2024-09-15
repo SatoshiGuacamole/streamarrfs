@@ -16,6 +16,7 @@ import {
   useTorrentUtilProvider,
 } from './module-providers';
 import { JackettTorrentSourceService } from './torrents/sources/feeds/jackett/jackett-torrent-source.service';
+import { ProwlarrTorrentSourceService } from './torrents/sources/feeds/prowlarr/prowlarr-torrent-source.service';
 import { TorrentIndexerService } from './torrents/indexer/torrent-indexer.service';
 import { FreeTorrentSourceService } from './torrents/sources/free/free-torrent-source.service';
 import { dataSourceOptions } from 'db/data-source';
@@ -58,6 +59,7 @@ import { TorrentsController } from './torrents/torrents.controller';
     useTorrentUtilProvider(),
     StreamarrService,
     JackettTorrentSourceService,
+    ProwlarrTorrentSourceService,
     StreamarrFsService,
     useWebtorrentServiceProvider(config().STREAMARRFS_WEBTORRENT_TORRENT_PORT),
     TorrentIndexerService,

@@ -10,24 +10,17 @@ import { FeedType, type Feed } from '../../../../types';
 import { TorrentInfoStatus } from '../../../db/entities/torrent.entity';
 
 @Injectable()
-export class JackettTorrentSourceService implements OnApplicationBootstrap {
-  private readonly logger = new Logger(JackettTorrentSourceService.name);
+export class ProwlarrTorrentSourceService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(ProwlarrTorrentSourceService.name);
   private isTaskRunning: boolean;
-  private rssParser;
   private feeds;
 
   constructor(
     private readonly torrentService: TorrentsService,
     private readonly configService: ConfigService,
   ) {
-    this.rssParser = new RssParser({
-      customFields: {
-        item: [['torznab:attr', 'torznabAttr']],
-      },
-      defaultRSS: 2.0,
-    });
     this.feeds = this.configService.get<Array<Feed>>(
-      'STREAMARRFS_JACKETT_FEEDS',
+      'STREAMARRFS_PROWLARR_FEEDS',
     );
   }
 
@@ -39,12 +32,12 @@ export class JackettTorrentSourceService implements OnApplicationBootstrap {
     });
   }
 
-  @Cron(config().STREAMARRFS_JACKETT_CRON_JOB_EXPRESSION, {
-    name: JackettTorrentSourceService.name,
+  @Cron(config().STREAMARRFS_PROWLARR_CRON_JOB_EXPRESSION, {
+    name: ProwlarrTorrentSourceService.name,
   })
   async runJob() {
     if (
-      this.configService.get<string>('STREAMARRFS_JACKETT_FEED_DISABLED') ===
+      this.configService.get<string>('STREAMARRFS_PROWLARR_FEED_DISABLED') ===
       'true'
     ) {
       this.logger.verbose(`aborting feed is disabled`);
@@ -60,16 +53,7 @@ export class JackettTorrentSourceService implements OnApplicationBootstrap {
       this.isTaskRunning = true;
       this.logger.log(`fetching torrents from feed`);
       for (const feed of this.feeds) {
-        if (feed.type === FeedType.RSS) {
-          await this.processRssFeed(feed);
-          continue;
-        }
-
-        if (feed.type === FeedType.JSON) {
-          await this.processJsonFeed(feed);
-          continue;
-        }
-        this.logger.warn(`Unsupported feed type=${feed.type}`);
+        await this.processJsonFeed(feed);
       }
     } catch (err) {
       this.logger.error(`ERROR running feed cron`);
@@ -79,53 +63,21 @@ export class JackettTorrentSourceService implements OnApplicationBootstrap {
     this.isTaskRunning = false;
   }
 
-  async processRssFeed(feed: Feed) {
-    try {
-      const feedContents = await this.rssParser.parseURL(feed.url);
-      this.logger.log(
-        `received ${feedContents.items.length ?? 'no'} items from feed=${
-          feed.name
-        }`,
-      );
-      for (const { guid: feedGuid, link: feedURL } of feedContents.items) {
-        if (!feedGuid || !feedURL) continue;
-        const existingTorrent =
-          await this.torrentService.findOneByFeedGuid(feedGuid);
-        if (!existingTorrent) {
-          await this.torrentService.create({
-            feedGuid,
-            feedURL,
-            status: TorrentInfoStatus.NEW,
-            isVisible: false,
-          });
-        }
-      }
-    } catch (err) {
-      this.logger.error(`Error processing feed=${feed.name}`);
-      this.logger.error(err);
-    }
-  }
-
   async processJsonFeed(feed: Feed) {
     try {
       const resp = await fetch(feed.url);
 
       if (resp.status === 200) {
         const jsonData = await resp.json();
-        const torrents = jsonData?.Results || [];
+        const torrents = jsonData || [];
 
         this.logger.log(
           `received ${torrents.length ?? 'no'} items from feed=${feed.name}`,
         );
         for (const torrent of torrents) {
-          const torrentGuid = torrent?.Guid || null;
-          let torrentLink = torrent?.Link || null;
+          const torrentGuid = torrent?.guid || null;
 
-          if (torrentLink === null && `${torrentGuid}`.startsWith('magnet')) {
-            torrentLink = torrentGuid;
-          }
-
-          if (torrentGuid === null || torrentLink === null) {
+          if (torrentGuid === null) {
             this.logger.warn(torrent, `torrent missing required fields`);
             continue;
           }
@@ -134,7 +86,7 @@ export class JackettTorrentSourceService implements OnApplicationBootstrap {
           if (!existingTorrent) {
             await this.torrentService.create({
               feedGuid: torrentGuid,
-              feedURL: torrentLink,
+              feedURL: torrentGuid,
               status: TorrentInfoStatus.NEW,
               isVisible: false,
             });

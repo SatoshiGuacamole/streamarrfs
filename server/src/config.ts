@@ -51,6 +51,22 @@ const STREAMARRFS_JACKETT_FEEDS = Object.keys(process.env)
     } as Feed;
   });
 
+const STREAMARRFS_PROWLARR_FEEDS = Object.keys(process.env)
+    .filter((envName) =>
+        envName.startsWith(
+            process.env.STREAMARRFS_PROWLARR_FEED_URL_PREFIX ||
+            'STREAMARRFS_PROWLARR_FEED_URL_ITEM',
+        ),
+    )
+    .map((feedKey) => {
+      return {
+        name: feedKey,
+        url: process.env[feedKey],
+        type: FeedType.JSON,
+        indexer: FeedIndexer.PROWLARR,
+      } as Feed;
+    });
+
 const logLevel = (): Array<LogLevel> => {
   if (process.env.STREAMARRFS_LOG_LEVEL) {
     return process.env.STREAMARRFS_LOG_LEVEL.split(',').map(
@@ -106,6 +122,16 @@ export default () => {
       process.env.STREAMARRFS_JACKETT_CRON_JOB_EXPRESSION ??
       CronExpression.EVERY_HOUR,
     STREAMARRFS_JACKETT_FEEDS: STREAMARRFS_JACKETT_FEEDS,
+
+    STREAMARRFS_PROWLARR_FEED_URL_PREFIX:
+        process.env.STREAMARRFS_PROWLARR_FEED_URL_PREFIX ??
+        'STREAMARRFS_PROWLARR_FEED_URL_ITEM',
+    STREAMARRFS_PROWLARR_FEED_DISABLED:
+        process.env.STREAMARRFS_PROWLARR_FEED_DISABLED ?? 'false',
+    STREAMARRFS_PROWLARR_CRON_JOB_EXPRESSION:
+        process.env.STREAMARRFS_PROWLARR_CRON_JOB_EXPRESSION ??
+        CronExpression.EVERY_HOUR,
+    STREAMARRFS_PROWLARR_FEEDS: STREAMARRFS_PROWLARR_FEEDS,
 
     STREAMARRFS_MOUNT_PATH:
       process.env.STREAMARRFS_MOUNT_PATH ?? `${os.tmpdir()}/streamarrfs-mnt`,
